@@ -74,8 +74,13 @@ def update_control_parameters(ind, action):
     else:
         F_f, CR_f = 0, 0
 
-    ind.F = np.clip(ind.F + F_f, 0, 1)
-    ind.CR = np.clip(ind.CR + CR_f, 0, 1)
+    ind.F = ind.F + F_f
+    ind.CR = ind.CR + CR_f
+
+    if ind.F < 0 or ind.F > 1:
+        ind.F = random.random()
+    if ind.CR < 0 or ind.CR > 1:
+        ind.CR = random.random()
 
 
 def rlmode_variation(population, toolbox, cxpb, mutpb):
