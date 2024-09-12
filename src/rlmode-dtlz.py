@@ -8,7 +8,7 @@ from math import factorial
 from deap import base, creator, tools
 
 # Enable multiprocessing
-pool = multiprocessing.Pool() 
+pool = multiprocessing.Pool()
 
 # Problem definition
 PROBLEM = "dtlz2"
@@ -81,9 +81,9 @@ def update_control_parameters(ind, action):
     ind.F = ind.F + F_f
     ind.CR = ind.CR + CR_f
 
-    if ind.F < 0 or ind.F > 1:
+    if ind.F < BOUND_LOW or ind.F > BOUND_UP:
         ind.F = random.random()
-    if ind.CR < 0 or ind.CR > 1:
+    if ind.CR < BOUND_LOW or ind.CR > BOUND_UP:
         ind.CR = random.random()
 
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     pf = problem.pareto_front(ref_points)
 
     # Visualization
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection="3d")
 
     p = np.array([ind.fitness.values for ind in pop])
