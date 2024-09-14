@@ -30,30 +30,6 @@ RL is a valuable technique from machine learning, which can automatically obtain
 
 The paper is organized as follows: related works are introduced in Section [2](https://www.sciencedirect.com/science/article/pii/S0952197623020018#sec2); the proposed RLMODE is elaborated in Section [3](https://www.sciencedirect.com/science/article/pii/S0952197623020018#sec3); the experiments are performed in Section [4](https://www.sciencedirect.com/science/article/pii/S0952197623020018#sec4); a multi-objective UAV path planning model is solved by RLMODE in Section [5](https://www.sciencedirect.com/science/article/pii/S0952197623020018#sec5); and the conclusion is made in Section [6](https://www.sciencedirect.com/science/article/pii/S0952197623020018#sec6).
 
-许多工业应用中涉及多个目标，同时需要满足某些约束条件。例如，微合金钢的成分设计中，屈服强度和抗拉强度是两个关键目标（[Saini et al., 2023](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib38)）；在无人机路径规划中，总飞行路径长度和地形威胁是两个相互冲突的目标（[Xiao et al., 2023](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib49)）；弧焊机器人路径规划中，能耗和轨迹平滑度需要同时考虑（[Zhou et al., 2022](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib54)）；废物管理和收集中，最大化利润、最小化旅行时间和成本是主要考虑因素（[Hashemi-Amiri et al., 2023](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib17)）；在处理浅湖问题时，要求最大化经济效用和最小化磷污染（[Shavazipour et al., 2021](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib39)）。这些目标往往相互冲突，被定义为约束多目标优化问题（CMOPs）。
-
-CMOPs 的数学表达式如下：
-
-$$\begin{aligned}&F\left(x\right)=\left(f_{1}\left(x\right),f_{2}\left(x\right),\ldots,f_{i}\left(x\right),\ldots,f_{m}\left(x\right)\right)\\&s.t.\left\{\begin{array}{c}g_{j}\left(x\right)<0,j=1,2,\ldots,q\\h_{j}\left(x\right)=0,j=q+1,q+2,\ldots,p\\x\in R^{n}\end{array}\right.\end{aligned}$$
-
-其中，$F(x)\in R^m$ 是 $m$ 维目标，$x\in R^n$ 是 $n$ 维向量，$g_{j}\left(x\right)$ 和 $h_{j}\left(x\right)$ 分别为不等式和等式约束，$q$ 和 $p-q$ 为约束的数量。当处理等式约束时，通常引入一个非常小的正数 $\delta$ 将等式约束转化为不等式。每个解 $x$ 的约束违反情况 $(cv)$ 可以计算如下：
-
-$$\left.\begin{aligned}&cv\left(x\right)=\sum_{j=1}^{p}cv_{j}\left(x\right)\\&cv_{j}\left(x\right)=\left\{\begin{array}{c}max\left\{g_{j}\left(x\right),0\right\},j=1,2,\ldots,q\\max\left\{\left|h_{j}\left(x\right)\right|-\delta,0\right\},j=q+1,q+2,\ldots,p\end{array}\right.\end{aligned}\right.$$
-
-其中 $cv_j\left(x\right)$ 是每个约束的违反值，$cv$ 是总违反值。如果 $cv=0$，则解 $x$ 被定义为可行解，否则为不可行解。所有可行解构成可行解集 $S\left(S=\left\{x|cv\left(x\right)=0,x\in R^{n}\right\}\right)$。定义两个解 $x_1\in S$ 和 $x_2\in S$，如果 $f_i\left(x_{1}\right)\leq f_{i}\left(x_{2}\right)\left(i=1,2,\ldots,m\right)$ 并且 $f_j\left(x_1\right)<f_j\left(x_2\right)\left(j\in\{1,2,\ldots,m\right\}$，那么解 $x_1$ 支配 $x_2$，记为 $x_1\preccurlyeq x_2$。如果在 $S$ 中没有解能支配 $x^*$，则定义 $x^*$ 为帕累托最优解。所有帕累托最优解构成帕累托最优集 $PS$，帕累托前沿 $PF$ 被定义为 $PF=\{F\left(x\right)|x\in PS\}$。这些约束使得获取 $PF$ 比解决无约束问题更具挑战性。约束 $PF$ 用于表示 CMOPs 的 $PF$，而无约束 $PF$ 用于描述无约束多目标优化的问题。
-
-在解决 CMOPs 时，目标最小化和约束满足是两个关键问题。许多多目标进化算法（MOEAs）和约束处理技术已被开发出来，它们极大地促进了 CMOPs 的发展。MOEAs 主要关注选择机制，而约束处理技术则处理约束条件。在进化过程中，父代生成子代，形成 $2NP$ 个个体的组合群体，其中 $NP$ 是群体大小。该机制通常从组合群体中选择 $NP$ 个解进入下一次进化（Deb et al., 2002）。然而，父代和对应子代之间的关系往往被忽略，而这可能对搜索方向产生影响。例如，如果子代能支配父代，则表明搜索方向和算法的参数设置是有效的，可以保持和加强搜索方向。反之，搜索方向可能无效。在单目标优化问题中，反馈机制广泛使用并取得了巨大成功（Cheng-Hung and Chong-Bin, 2018; Hu et al., 2021; Wang et al., 2022）。
-
-强化学习（RL）是一种来自机器学习的有价值技术，通过与环境的交互自动获得奖励（[Hu et al., 2021](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib18)）。RL 通过试错过程最大化其行为的效益。这一优势可以有效地用于解决 CMOPs，因此 RL 技术在 CMOPs 社区中越来越受关注。为有效处理约束问题，提出了一种基于深度 RL 的新型 CMOEAs，在其中动态惩罚系数根据训练损失动态更新（[Tang et al., 2023](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib42)）。为了提供更好的种群生成策略，开发了一种过程知识引导的 CMOEA，应用深度 Q 学习网络来反映过程知识（[Zuo et al., 2023](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib58)）。在过程中，差分进化（DE）算法的五种策略（DE/best/1、DE/best/2、DE/rand/1、DE/rand/2、DE/current-to-pbest/1）被使用，其中 DE/best/1、DE/best/2 和 DE/current-to-pbest/1 涉及最优解。很难在 CMOPs 的上下文中定义最优解，最优解涉及整个非支配解集。深度 RL 动态调整 DE 和遗传算法（GA）两个操作符来处理 CMOPs，因为 GA 具有很强的收敛能力，而 DE 具有很强的探索能力（[Fei et al., 2024](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib12)）。这些算法主要关注如何生成子代的策略，而忽略了调整这些策略中的参数。CMOEAs 的这些参数对于平衡局部和全局搜索也非常重要。基于这一观察和研究空白，我们开发了一种基于 RL 的多目标差分进化（RLMODE）算法，通过自动调整主要参数来解决 CMOPs。本文的主要创新点总结如下：
-
-1. 开发了一种基于强化学习的多目标差分进化（RLMODE）算法来解决 CMOPs。
-
-2. 在 RLMODE 中考虑了子代与其父代之间的关系，使得 RLMODE 的主要参数通过 RL 技术自适应调整，并获得最合适的值。
-
-3. RLMODE 算法被用于解决三十个基准函数和一个实际应用。性能指标表明，RLMODE 算法具有竞争力。
-
-本文的组织结构如下：第二部分介绍相关工作；第三部分详细说明了提出的 RLMODE；第四部分进行实验；第五部分通过 RLMODE 解决多目标无人机路径规划模型；第六部分为结论。
-
 ## 2. Related work
 
 Handling CMOPs is still challenging since minimizing multi-objectives and meeting various constraints are equally important ([Liang et al., 2023a](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib23)). For the former, lots of MOEAs can be available. These MOEAs can be roughly classified into the following types ([Yu et al., 2018](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib52)). The first one is based on decomposition. MOEAs of this type often decompose CMOPs into serial sub-problems and optimize them simultaneously, such as MOEA/D ([Qingfu and Hui, 2007](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib35)). The second type is on the basis of the Pareto dominance principle, in which non-dominated solutions are emphasized, and elites are preserved, such as NSGAII([Deb et al., 2002](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib7)) and NSGAIII([Deb and Jain, 2014](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib6); [Jain and Deb, 2014](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib19)). The last type is built on the performance indicators, such as HypE ([Bader and Zitzler, 2011](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib2)) and IBEA ([Zitzler and Künzli, 2004](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib55)). These algorithms are capable of dealing with unconstrained multi-objective optimization problems and provide well-distributed non-dominated solutions. However, they cannot be directly used to solve CMOPs without constraint handling techniques.
@@ -94,38 +70,6 @@ $$X_i=\left\{\begin{array}{c}U_i\:U_i\preccurlyeq X_i\\X_i\quad otherwise\end{ar
 
 If the newly generated vector $U_i$ can dominate $X_i,U_i$ takes the place of $X_i.$ Otherwise,
 the individual $X_i$ is retained.
-
-DE算法（差分进化算法，Differential Evolution Algorithm）是一种有效且高效的基于种群的进化算法，由Storn和Price于1997年提出。最初，DE算法主要用于求解切比雪夫多项式的系数问题。随后，随着其在连续优化问题中的稳健性被确认，DE算法逐渐被应用于解决各种实际应用问题，主要得益于其简单性和灵活性。
-
-差分进化算法（DE算法）是一种高效的基于群体的进化算法。它最早由Storn和Price在1997年提出（[Storn and Price, 1997](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib40)）。最初，DE算法主要用于求解切比雪夫多项式的系数问题。随后，其在连续问题上的鲁棒优化能力被确认。由于其简单性和灵活性，DE算法被广泛应用于各种问题求解。DE算法的主要步骤如下（[BilalPant等，2020](https://www.sciencedirect.com/science/article/pii/S0952197623020018#bib3)）。
-
-DE算法通过一个包含$NP$个个体的群体进行演化，每个个体的维度为$D$。每个个体表示为$X_i=\left\{X_i^1,X_i^2,\ldots,X_i^D\right\}$。初始群体应尽可能覆盖搜索空间。通常，群体在搜索空间$[X_{min},X_{max}]$中进行均匀随机化，其中$X_{min}=\left\{X_{min}^{1},X_{min}^{2},\ldots,X_{min}^{j},\ldots,X_{min}^{D}\right\},X_{max}=\left\{X_{max}^{1},X_{max}^{2},\ldots,X_{max}^{j},\ldots,X_{max}^{D}\right\}$。
-
-$$X_i=X_{min}+rand\times(X_{max}-X_{min})$$
-
-其中，系数$rand$的取值范围在0到1之间，$j$为维度的索引（$j=1,2,\ldots,D$）。第二步是变异。在DE算法的文献中，一种被广泛使用的变异算子是DE/rand/1，因其鲁棒性和快速性而广受欢迎（BilalPant等，2020）。DE/rand/1的公式如下：
-
-$$V_i=X_{r_1}+F\times(X_{r_2}-X_{r_3})$$
-
-其中，$r_1, r_2, r_3$是随机选取的不同整数，范围在1到$NP$之间（$i \neq r_1 \neq r_2 \neq r_3$）。$F$是一个在0到1之间的标量因子，它用于放大差向量$X_{r_2}-X_{r_3}$。变异之后是交叉算子。DE算法使用二项式交叉算子对$V_i$和$X_i$进行操作，生成试验向量$U_i=\left\{u_i^{1},u_i^{2},\ldots,u_i^{j},\ldots,u_i^{D}\right\}$，公式如下：
-
-$$
-u_i^j=\begin{cases}
-v_i^j & rand_j\leq CR \text{ or } j=j_{rand}\\
-x_i^j & \text{否则}
-\end{cases}
-$$
-
-其中，$CR$是交叉概率，取值范围在0到1之间，$j_{rand}$是一个在1到$NP$之间的整数，确保至少有一个分量从$V_i$保留到$U_i$中。最后，DE算法采用贪婪选择，将$U_i$与$X_i$进行比较：
-
-$$
-X_i=\begin{cases}
-U_i & U_i\preccurlyeq X_i\\
-X_i & \text{否则}
-\end{cases}
-$$
-
-如果新生成的向量$U_i$能支配$X_i$，则$U_i$替代$X_i$。否则，保留原个体$X_i$。
 
 ### 3.2. Reinforcement learning (RL) technique
 
@@ -198,54 +142,6 @@ The proposed RLMODE algorithm is established based on the RL technique, MOEAs an
 
 <img src="https://ars.els-cdn.com/content/image/1-s2.0-S0952197623020018-gr2_lrg.jpg" alt="Fig. 2. The flowchart of the proposed RLMODE algorithm." style="zoom:33%;" />
 
-(1) **Q-learning in RLMODE**
-
-在我们提出的RLMODE算法中，使用了Q表。Q表是一个矩阵，其列表示动作$a$，行表示状态$s$。表中的每个元素$Q(s, a)$表示在状态$s$下采取动作$a$的Q值，如下图所示。
-
-| 状态  | 动作         |              |      |              |
-| ----- | ------------ | ------------ | ---- | ------------ |
-|       | $a_1$        | $a_2$        | …    | $a_n$        |
-| $s_1$ | $Q(s_1,a_1)$ | $Q(s_1,a_2)$ | …    | $Q(s_1,a_n)$ |
-| $s_2$ | $Q(s_2,a_1)$ | $Q(s_2,a_2)$ | …    | $Q(s_2,a_n)$ |
-| …     | …            | …            | …    | …            |
-| $s_m$ | $Q(s_m,a_1)$ | $Q(s_m,a_2)$ | …    | $Q(s_m,a_n)$ |
-
-在RLMODE中，个体被定义为代理。对于每个代理$a$，通常使用SoftMax函数来确定在状态$s$下应采取的动作。SoftMax函数如下：
-
-$$\pi\left(s_j,a_j\right)=\frac{e^{Q_t\left(s_j,a_j\right)\Big/_T}}{\sum_{j=1}^ne^{Q_t\left(s_j,a_j\right)\Big/_T}}$$
-
-其中，$Q_{t}\left(s_{j},a_{j}\right)$是在第$t$次迭代中Q表中的Q值，$n$为动作的数量。基于Q表中的值，代理可以计算其采取某一动作的概率。
-
-(2) **通过RL的反馈机制**
-
-通过差分进化（DE）算法，后代$U_i$由父代$V_i$生成。考虑到约束条件，可能会出现可行和不可行解共存的情况。因此，有以下八种场景，如下表所示：
-
-| 状态 | 父代 ($U_i$)                | 后代 ($V_i$) | 状态      | 奖励 |
-| ---- | --------------------------- | ------------ | --------- | ---- |
-| 1    | 可行                        | 可行         | $V_i≼U_i$ | 1    |
-| 2    | $U_i≼V_i$                   | −1           |           |      |
-| 3    | $U_i$ 和 $V_i$ 无法相互支配 | 0            |           |      |
-| 4    | 可行                        | 不可行       | $U_i≼V_i$ | −1   |
-| 5    | 不可行                      | 可行         | $V_i≼U_i$ | 1    |
-| 6    | 不可行                      | 不可行       | $V_i≼U_i$ | 1    |
-| 7    | $U_i≼V_i$                   | −1           |           |      |
-| 8    | $U_i$ 和 $V_i$ 无法相互支配 | 0            |           |      |
-
-这八种场景可分为三类。第一类包括第一、第五和第六种状态，此时后代优于父代。观察结果表明当前的局部搜索方向是有效的，因此可以进一步加强局部搜索，使变异向量有更多机会向Pareto前沿移动。由于搜索方向是正确的，奖励值设为1。可以进一步减少变异因子$F$，并增加交叉率$CR$以增强局部搜索。因此，我们设定$F_f=-0.1, CR_f=0.1$。第二类包括第二、第四和第七种状态，此时后代不如父代。当前的局部搜索方向可能无效，我们可以通过增加变异因子$F$和增加交叉率$CR$来加强全局搜索，从而使算法跳出局部最优。因此，我们设定$F_f=0.1, CR_f=0.1$。由于搜索方向不正确，奖励值设为-1。剩余的场景属于第三类，其中父代和后代无法相互支配，状态相同。我们将奖励值设为0，变异因子$F$和交叉率$CR$保持不变，$F_f=0, CR_f=0$。
-
-因此，三种相应的动作为：$F_{f}=-0.1,CR_{f}=0.1;F_{f}=0.1,CR_{f}=0.1;F_{f}=0,CR_{f}=0$。这些动作通过反馈机制转化为更新RLMODE算法参数的过程如下：
-
-$$\begin{aligned}&F=F_f+F\\&CR=CR_f+CR\end{aligned}$$
-
-更新后的参数用于生成后代向量$U_i$。使用SoftMax函数根据式(8)确定应采取的动作。可以计算出$U_i$的目标值和约束。由于CDP简单且鲁棒性强，我们在此采用它来比较生成向量$U_i$和原始向量$X_i$。如果生成的向量可以支配父代，则奖励值设为1，状态变为1。如果父代可以支配生成的向量，状态变为2；如果它们无法相互支配，状态设为3。最后，我们根据式(7)更新Q表，并通过非支配排序从后代$U_i$和父代$X_i$的集合中选择$NP$个个体。然后，下一次迭代以$NP$个个体和更新后的参数开始。由于每个个体可能具有不同的状态并采取不同的动作，因此它们在迭代过程中$F$和$CR$的值也不同。		
-
-(3) **RLMODE算法的框架**	
-
-提出的RLMODE算法基于RL技术、多目标进化算法（MOEAs）和CDP。在开始时，初始种群根据式(3)在搜索范围内随机初始化。两个参数$F$和$CR$在0和1的范围内初始化。然后，种群进入进化过程。$F$和$CR$被更新，并通过式(4)和(5)生成后代。RL技术用于更新Q表、状态和奖励。提出的RLMODE算法框架如算法2所示。相应的流程图如图2所示。
-
-![RLMODE流程图](https://ars.els-cdn.com/content/image/1-s2.0-S0952197623020018-fx2_lrg.jpg)
-
-![Fig. 2. 提出RLMODE算法的流程图](https://ars.els-cdn.com/content/image/1-s2.0-S0952197623020018-gr2_lrg.jpg)
 
 ## 4. Experimental study
 
@@ -469,4 +365,4 @@ We select each solution from the non-dominated set obtained by NSGAII-CDP, NSGAI
 
 In this paper, a RL-based MODE algorithm, RLMODE, is developed. The algorithm uses the information between the parent and its offspring to adjust the search direction adaptively with the help of RL technique. Eight different scenarios are considered between the parent and offspring. The RL technique implements the process, which can incrementally and autonomously learn knowledge by interacting with the environment. The main characteristic of the proposed RLMODE is straightforward without setting values of scalar factor $F$ and crossover rate $CR$. The proposed RLMODE and five representative MOEAs are used to deal with thirty benchmark functions. According to the performance indicator IGD, the proposed RLMODE is superior to its five rivals in the first two groups. Then, we apply the proposed RLMODE algorithm to solve the UAV path problem, in which three objectives and a constraint are involved. RLMODE has achieved better UAV paths, which indicates that the algorithm is competitive. Therefore, RLMODE is a reliable and alternative algorithm when solving CMOPs.
 
-To further develop the performance of RLMODE, we can conduct the following research: (1) two main parameters are automatically adjusted by RL technique in our algorithm. Efficient strategies are also critical for CMOEAs when generating offspring. We also need to select efficient strategies for CMOEAs through RL technique automatically. (2) Deep RL approach is a new emerging technique that has been applied in optimization problems. We can use the approach to reestablish the framework of our CMOEAs.
+To further develop the performance of RLMODE, we can conduct the following research: (1) two main parameters are automatically adjusted by RL technique in our algorithm. Efficient strategies are also critical for CMOEAs when generating offspring. We also need to select efficient strategies for CMOEAs through RL technique automatically. (2) Deep RL approach is a new emerging technique that has been applied in optimization problems. We can use the approach to reestablish the framework of our CMOEAs.		
