@@ -10,47 +10,51 @@ from deap import base, creator, tools
 PROBLEM = "ctp1"
 NOBJ = 2
 NVAR = 10
-P = 12
-BOUND_LOW, BOUND_UP = 0.0, 1.0
 problem = CTP1(n_var=NVAR)
+BOUND_LOW, BOUND_UP = problem.bounds()
 
 # Algorithm parameters
-MU = 1000
-NGEN = 800
+MU = 100
+NGEN = 100
 CXPB = 1.0
 MUTPB = 1.0
+T = 0.9
+num_actions = 3
+num_states = 3
 
 # Create classes
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,) * NOBJ)
 creator.create("Individual", np.ndarray, fitness=creator.FitnessMin)
 
 # Initialize Q-table
-Q_TABLE = np.zeros((3, 3))  # 3 states, 3 actions
-
-ref_points = tools.uniform_reference_points(NOBJ, P)
+Q_TABLE = np.zeros((num_states, num_actions))  # 3 states, 3 actions
+F_TABLE = np.random.random(size=MU)
+CR_TABLE = np.random.random(size=MU)
 
 # Toolbox initialization
-def uniform(low, up, size=None):
-    try:
-        return [random.uniform(a, b) for a, b in zip(low, up)]
-    except TypeError:
-        return [random.uniform(a, b) for a, b in zip([low] * size, [up] * size)]
+def uniform(low, up, size):
+    return [random.uniform(low[i], up[i]) for i in range(size)]
 
+def differential_mutation(population, F):
+    r1, r2, r3 = random.sample(population, 3)
+    mutant = [x1 + F * (x2 - x3) for x1, x2, x3 in zip(r1, r2, r3)]
 
-toolbox = base.Toolbox()
-toolbox.register("attr_float", uniform, BOUND_LOW, BOUND_UP, NVAR)
-toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr_float)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("evaluate", problem.evaluate, return_values_of=["F"])
-toolbox.register("mate", tools.cxSimulatedBinaryBounded, low=BOUND_LOW, up=BOUND_UP, eta=30.0)
-toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP, eta=20.0, indpb=1.0 / NVAR)
-toolbox.register("select", tools.selNSGA3, ref_points=ref_points)
+    return mutant
 
+def binomial_crossover(mutant, ind, CR):
+    dim = len(ind)
+    j_rand = random.randint(0, dim - 1)
+    trial = [mutant[j] if random.random() <= CR or j == j_rand else ind[j] for j in range(dim)]
 
-# RLMODE specific functions
-def select_action(state):
-    return np.argmax(Q_TABLE[state])
+    return trial
 
+def softmax(Q_values, T):
+    exp_values = np.exp(Q_values / T)
+    return exp_values / np.sum(exp_values)
+
+def select_action(state, T):
+    probabilities = softmax(Q_TABLE[state], T)
+    return np.random.choice(num_actions, p=probabilities)
 
 def update_q_table(state, action, reward, next_state):
     learning_rate = 0.1
@@ -60,8 +64,7 @@ def update_q_table(state, action, reward, next_state):
     new_value = (1 - learning_rate) * old_value + learning_rate * (reward + discount_factor * next_max)
     Q_TABLE[state, action] = new_value
 
-
-def update_control_parameters(ind, action):
+def update_control_parameters(index, action):
     if action == 0:
         F_f, CR_f = -0.1, 0.1
     elif action == 1:
@@ -69,44 +72,53 @@ def update_control_parameters(ind, action):
     else:
         F_f, CR_f = 0, 0
 
-    ind.F = ind.F + F_f
-    ind.CR = ind.CR + CR_f
+    F_TABLE[index] = F_TABLE[index] + F_f
+    CR_TABLE[index] = CR_TABLE[index] + CR_f
 
-    if ind.F < BOUND_LOW or ind.F > BOUND_UP:
-        ind.F = random.random()
-    if ind.CR < BOUND_LOW or ind.CR > BOUND_UP:
-        ind.CR = random.random()
-
-
-def rlmode_variation(population, toolbox, cxpb, mutpb):
+def rlmode_variation(population, toolbox, state):
     offspring = []
-    for ind1, ind2 in zip(population[::2], population[1::2]):
-        if random.random() < cxpb:
-            ind1, ind2 = toolbox.clone(ind1), toolbox.clone(ind2)
-            ind1, ind2 = toolbox.mate(ind1, ind2)
-            del ind1.fitness.values, ind2.fitness.values
 
-        if random.random() < mutpb:
-            ind1, = toolbox.mutate(ind1)
-            del ind1.fitness.values
+    def is_dominate(x, y):
+        return x.fitness.dominates(y.fitness)
 
-        if random.random() < mutpb:
-            ind2, = toolbox.mutate(ind2)
-            del ind2.fitness.values
+    for i in range(len(population)):
+        ind = population[i]
+        # TODO: Implement individual-based F and CR
+        mutant = toolbox.mutate(population, F_TABLE[i])
+        trial = toolbox.crossover(mutant, ind, CR_TABLE[i])
+        trial = creator.Individual(trial)
+        trial.fitness.values = toolbox.evaluate(trial)
 
-        offspring.append(ind1)
-        offspring.append(ind2)
+        offspring.append(trial)
 
-        # RLMODE specific: Update control parameters
-        for ind in [ind1, ind2]:
-            state = random.randint(0, 2)  # Simplified state selection
-            action = select_action(state)
-            update_control_parameters(ind, action)
-            next_state = random.randint(0, 2)  # Simplified transition
-            reward = 1 if ind.fitness.valid else 0  # Simplified reward
-            update_q_table(state, action, reward, next_state)
+        if is_dominate(trial, ind):
+            reward = 1
+        else:
+            if is_dominate(ind, trial):
+                reward = -1
+            else:
+                reward = 0
+
+        next_state = [2, 0, 1][reward]
+        action = select_action(state, T)
+        update_control_parameters(i, action)
+        update_q_table(state, action, reward, next_state)
+        state = next_state
 
     return offspring
+
+toolbox = base.Toolbox()
+toolbox.register("attr_float", uniform, BOUND_LOW, BOUND_UP, NVAR)
+toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr_float)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+toolbox.register("evaluate", problem.evaluate, return_values_of=["F"])
+toolbox.register("mutate", differential_mutation)
+toolbox.register("crossover", binomial_crossover)
+toolbox.register("variation", rlmode_variation)
+toolbox.register("select", tools.selNSGA2)
+
+# pool = multiprocessing.Pool()
+# toolbox.register("map", pool.map)
 
 
 def main(seed=None):
@@ -122,17 +134,13 @@ def main(seed=None):
     logbook.header = "gen", "evals", "std", "min", "avg", "max"
 
     pop = toolbox.population(n=MU)
-
-    # Initialize F and CR for each individual
-    for ind in pop:
-        ind.F = random.random()
-        ind.CR = random.random()
+    state = random.randint(0, 2)
 
     # Evaluate the individuals with an invalid fitness
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
     fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
     for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit    
+        ind.fitness.values = fit
 
     # Compile statistics about the population
     record = stats.compile(pop)
@@ -141,7 +149,7 @@ def main(seed=None):
 
     # Begin the generational process
     for gen in range(1, NGEN):
-        offspring = rlmode_variation(pop, toolbox, CXPB, MUTPB)
+        offspring = toolbox.variation(pop, toolbox, state)
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -160,13 +168,14 @@ def main(seed=None):
     return pop, logbook
 
 
-if __name__ == "__main__":
-    pop, stats = main()
-    pop_fit = np.array([ind.fitness.values for ind in pop])
+pop, stats = main()
+pop_fit = np.array([ind.fitness.values for ind in pop])
 
-    pf = problem.pareto_front(ref_points)
+pf = problem.pareto_front()
 
-    # Calculate and print IGD
-    from deap.benchmarks.tools import igd
+# Calculate and print IGD
+from deap.benchmarks.tools import igd
 
-    print(f"IGD: {igd(pop_fit, pf)}")
+print(f"IGD: {igd(pop_fit, pf)}")
+
+# pool.close()
