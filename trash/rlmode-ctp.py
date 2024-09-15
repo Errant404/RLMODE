@@ -4,13 +4,14 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import numpy as np
 from pymoo.problems.multi.ctp import CTP1
+from pymoo.problems import get_problem
 from deap import base, creator, tools
 
 # Problem definition
 PROBLEM = "ctp1"
 NOBJ = 2
 NVAR = 10
-problem = CTP1(n_var=NVAR)
+problem = get_problem("ctp1", n_var=NVAR)
 BOUND_LOW, BOUND_UP = problem.bounds()
 
 # Algorithm parameters
@@ -111,7 +112,7 @@ toolbox = base.Toolbox()
 toolbox.register("attr_float", uniform, BOUND_LOW, BOUND_UP, NVAR)
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr_float)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("evaluate", problem.evaluate, return_values_of=["F"])
+toolbox.register("evaluate", problem.evaluate)
 toolbox.register("mutate", differential_mutation)
 toolbox.register("crossover", binomial_crossover)
 toolbox.register("variation", rlmode_variation)
