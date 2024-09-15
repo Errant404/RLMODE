@@ -1,5 +1,7 @@
+import numpy as np
 # pymoo imports
 from pymoo.core.population import Population
+from pymoo.operators.sampling.rnd import random
 from pymoo.util.dominator import get_relation
 
 # pymoode imports
@@ -8,7 +10,7 @@ from pymoode.survival import RankAndCrowding
 
 # custom imports
 from variant import RlmodeVariant
-
+from qlearning import Qlearning
 
 # =========================================================================================================
 # Implementation
@@ -89,15 +91,9 @@ class RLMODE(MODE):
             In GDE3, the survival strategy is applied after a one-to-one comparison between child vector and corresponding parent when both are non-dominated by the other.
         """
 
-        mating = RlmodeVariant(
-            variant=variant, CR=CR, F=F, gamma=gamma,
-            de_repair=de_repair, **kwargs,
-        )
-
         super().__init__(
             pop_size=pop_size,
             variant=variant,
-            mating=mating,
             CR=CR,
             F=F,
             gamma=gamma,
@@ -106,36 +102,34 @@ class RLMODE(MODE):
             **kwargs,
         )
 
+        self.mating = RlmodeVariant(
+            variant=variant, CR=CR, F=F, gamma=gamma,
+            de_repair=de_repair, **kwargs,
+        )
+        self.current_state = np.random.randint(3, size=pop_size)
+        self.qlearning = Qlearning(n_states=3, n_actions=3, alpha=0.1, gamma=0.9)
+
     def _advance(self, infills=None, **kwargs):
 
         assert infills is not None, "This algorithms uses the AskAndTell interface thus 'infills' must to be provided."
 
         # The individuals that are considered for the survival later and final survive
         survivors = []
-
         # now for each of the infill solutions
         for k in range(len(self.pop)):
-
             # Get the offspring an the parent it is coming from
             off, parent = infills[k], self.pop[k]
-
             # Check whether the new solution dominates the parent or not
             rel = get_relation(parent, off)
-
-            # If indifferent we add both
-            if rel == 0:
-                survivors.extend([parent, off])
-
-            # If offspring dominates parent
-            elif rel == -1:
-                survivors.append(off)
-
-            # If parent dominates offspring
-            else:
-                survivors.append(parent)
+            next_state = [2, 0, 1][rel]
+            if not hasattr(self.pop[k], "state"):
+                self.pop[k].state = np.random.randint(3)
+            # Update the Q-table
+            self.qlearning.update_q_table(self.pop[k].state, next_state, rel)
+            self.pop[k].state = next_state
+            survivors.append([parent, off])
 
         # Create the population
         survivors = Population.create(*survivors)
-
         # Perform a survival to reduce to pop size
         self.pop = self.survival.do(self.problem, survivors, n_survive=self.n_offsprings)

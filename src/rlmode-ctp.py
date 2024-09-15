@@ -4,7 +4,6 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import numpy as np
 from pymoo.problems.multi.ctp import CTP1
-from math import factorial
 from deap import base, creator, tools
 
 # Problem definition
@@ -15,19 +14,15 @@ P = 12
 BOUND_LOW, BOUND_UP = 0.0, 1.0
 problem = CTP1(n_var=NVAR)
 
-def evaluate(individual, **kwargs):
-    X = np.array(individual).reshape(-1, NVAR)
-    return problem.evaluate(X, **kwargs)
-
 # Algorithm parameters
 MU = 1000
-NGEN = 400
+NGEN = 800
 CXPB = 1.0
 MUTPB = 1.0
 
 # Create classes
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,) * NOBJ)
-creator.create("Individual", list, fitness=creator.FitnessMin)
+creator.create("Individual", np.ndarray, fitness=creator.FitnessMin)
 
 # Initialize Q-table
 Q_TABLE = np.zeros((3, 3))  # 3 states, 3 actions
@@ -46,8 +41,7 @@ toolbox = base.Toolbox()
 toolbox.register("attr_float", uniform, BOUND_LOW, BOUND_UP, NVAR)
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.attr_float)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-toolbox.register("evaluate", evaluate, return_values_of=["F"])
+toolbox.register("evaluate", problem.evaluate, return_values_of=["F"])
 toolbox.register("mate", tools.cxSimulatedBinaryBounded, low=BOUND_LOW, up=BOUND_UP, eta=30.0)
 toolbox.register("mutate", tools.mutPolynomialBounded, low=BOUND_LOW, up=BOUND_UP, eta=20.0, indpb=1.0 / NVAR)
 toolbox.register("select", tools.selNSGA3, ref_points=ref_points)

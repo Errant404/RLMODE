@@ -1,7 +1,7 @@
 # pymoode imports
 from operators import RLMODEX, RLMODEM
 
-from pymoode.operators.variant import DifferentialVariant
+from pymoode.operators.variant import DifferentialVariant, _fix_deprecated_pm_kwargs
 
 class RlmodeVariant(DifferentialVariant):
     def __init__(self,
@@ -13,7 +13,7 @@ class RlmodeVariant(DifferentialVariant):
                  genetic_mutation=None,
                  **kwargs):
         super().__init__(**kwargs)
-
+        kwargs, genetic_mutation = _fix_deprecated_pm_kwargs(kwargs, genetic_mutation)
         _, selection_variant, n_diff, crossover_variant, = variant.split("/")
         n_diffs = int(n_diff)
         # Define differential evolution mutation
