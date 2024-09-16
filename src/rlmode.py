@@ -1,12 +1,16 @@
 import numpy as np
 import random
 
+from pymoo.core.population import Population, pop_from_array_or_individual, merge
+from pymoo.core.individual import Individual
+from pymoo.core.evaluator import Evaluator
+from pymoo.util.dominator import get_relation
 from pymoo.problems import get_problem
 from pymoo.indicators.igd import IGD
 from pymoo.visualization.scatter import Scatter
-from functools import cmp_to_key
+from pymoode.survival import ConstrRankAndCrowding
 
-problem = get_problem("ctp1", n_var=5)
+problem = get_problem("ctp3", n_var=5)
 pf = problem.pareto_front()
 ind = IGD(pf)
 
@@ -49,52 +53,6 @@ def get_offspring(pop, F, CR, index):
     return offspring
 
 
-def is_dominate(x, y):
-    # x["F"]: objs values
-    # x["G"]: ieqs constraints
-    # x["H"]: eqs constraints
-    # x: offspring, y: parent
-    # return: 1 if x dominates y, -1 if y dominates x, 0 if x and y are non-dominated
-    x_dict = dict()
-    y_dict = dict()
-    x_dict["F"] = problem.evaluate(x, return_values_of=["F"])
-    y_dict["F"] = problem.evaluate(y, return_values_of=["F"])
-    if problem.n_ieq_constr > 0:
-        x_dict["G"] = problem.evaluate(x, return_values_of=["G"])
-        y_dict["G"] = problem.evaluate(y, return_values_of=["G"])
-    else:
-        x_dict["G"], y_dict["G"] = np.zeros(0), np.zeros(0)
-    if problem.n_eq_constr > 0:
-        x_dict["H"] = problem.evaluate(x, return_values_of=["H"])
-        y_dict["H"] = problem.evaluate(y, return_values_of=["H"])
-    else:
-        x_dict["H"], y_dict["H"] = np.zeros(0), np.zeros(0)
-
-    def is_feasible(dict):
-        return np.all(dict["G"] <= 0) and np.all(dict["H"] == 0)
-
-    if is_feasible(x_dict) and not is_feasible(y_dict):
-        return 1
-    elif not is_feasible(x_dict) and is_feasible(y_dict):
-        return -1
-    elif not is_feasible(x_dict) and not is_feasible(y_dict):
-        cv_x = np.sum(np.maximum(0, x_dict["G"])) + np.sum(np.abs(x_dict["H"]))
-        cv_y = np.sum(np.maximum(0, y_dict["G"])) + np.sum(np.abs(y_dict["H"]))
-        if cv_x < cv_y:
-            return 1
-        elif cv_x > cv_y:
-            return -1
-        else:
-            return 0
-    elif is_feasible(x_dict) and is_feasible(y_dict):
-        if np.all(x_dict["F"] >= y_dict["F"]) and np.any(x_dict["F"] > y_dict["F"]):
-            return 1
-        elif np.all(x_dict["F"] <= y_dict["F"]) and np.any(x_dict["F"] < y_dict["F"]):
-            return -1
-        else:
-            return 0
-
-
 random.seed(0)
 np.random.seed(0)
 num_states = 3
@@ -102,7 +60,7 @@ num_actions = 3
 qlearning = Qlearning(num_states, num_actions)
 BOUND_LOW, BOUND_UP = problem.bounds()
 
-num_gen = 100
+num_gen = 200
 num_pop = 100
 state = random.randint(0, num_states - 1)
 F_table = np.random.random(num_pop)
@@ -113,6 +71,8 @@ CR_j = np.zeros(num_pop)
 x_max = np.array([BOUND_UP])
 x_min = np.array([BOUND_LOW])
 pop = np.random.rand(num_pop, problem.n_var) * (x_max - x_min) + x_min
+pop = pop_from_array_or_individual(pop)
+pop = Evaluator().eval(problem, pop)
 for i in range(num_gen):
     offsprings = []
     for j in range(num_pop):
@@ -123,24 +83,26 @@ for i in range(num_gen):
         if CR_table[j] > 1 or CR_table[j] < 0:
             CR_table[j] = random.random()
 
-        offspring = get_offspring(pop, F_table, CR_table, j)
+        offspring = Individual()
+        offspring.X = get_offspring(pop.get("X"), F_table, CR_table, j)
+        offspring = Evaluator().eval(problem, offspring)
 
         action = qlearning.choose_action(state)
         F_j[j] = [-0.1, 0.1, 0][action]
         CR_j[j] = [0.1, 0.1, 0][action]
 
-        reward = [0, 1, -1][is_dominate(offspring, pop[j])]
+        reward = [0, 1, -1][get_relation(offspring, pop[j])]
         next_state = [2, 0, 1][reward]
         qlearning.update(state, action, reward, next_state)
         state = next_state
         offsprings.append(offspring)
 
-    pop = np.append(pop, offsprings, axis=0)
-    pop = np.array(sorted(pop, key=cmp_to_key(is_dominate)))[0:num_pop]
-
+    offsprings = Population.create(*offsprings)
+    pop = merge(pop, offsprings)
+    pop = ConstrRankAndCrowding().do(problem, pop)[:num_pop]
     # The result found by the algorithm
-    A = problem.evaluate(pop, return_values_of=["F"])
-    print("IGD", ind(A))
+    A = problem.evaluate(pop.get("X"), return_values_of=["F"])
+    print(f"{i}", "IGD", ind(A))
 
 # plot the result
 Scatter(legend=True).add(pf, label="Pareto-front").add(A, label="Result").show()
