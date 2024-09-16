@@ -44,6 +44,8 @@ def get_offspring(pop, F, CR, index):
             offspring[j] = mutant[j]
         else:
             offspring[j] = pop[index][j]
+        if offspring[j] > BOUND_UP[j] or offspring[j] < BOUND_LOW[j]:
+            offspring[j] = random.uniform(BOUND_LOW[j], BOUND_UP[j])
     return offspring
 
 
@@ -68,8 +70,8 @@ def is_dominate(x, y):
     else:
         x_dict["H"], y_dict["H"] = np.zeros(0), np.zeros(0)
 
-    def is_feasible(x_dict):
-        return np.all(x_dict["G"] <= 0) and np.all(x_dict["H"] == 0)
+    def is_feasible(dict):
+        return np.all(dict["G"] <= 0) and np.all(dict["H"] == 0)
 
     if is_feasible(x_dict) and not is_feasible(y_dict):
         return 1
@@ -87,11 +89,14 @@ def is_dominate(x, y):
     elif is_feasible(x_dict) and is_feasible(y_dict):
         if np.all(x_dict["F"] >= y_dict["F"]) and np.any(x_dict["F"] > y_dict["F"]):
             return 1
+        elif np.all(x_dict["F"] <= y_dict["F"]) and np.any(x_dict["F"] < y_dict["F"]):
+            return -1
         else:
             return 0
 
 
 random.seed(0)
+np.random.seed(0)
 num_states = 3
 num_actions = 3
 qlearning = Qlearning(num_states, num_actions)
@@ -105,7 +110,9 @@ CR_table = np.random.random(num_pop)
 F_j = np.zeros(num_pop)
 CR_j = np.zeros(num_pop)
 
-pop = np.random.uniform(BOUND_LOW, BOUND_UP, (num_pop, problem.n_var))
+x_max = np.array([BOUND_UP])
+x_min = np.array([BOUND_LOW])
+pop = np.random.rand(num_pop, problem.n_var) * (x_max - x_min) + x_min
 for i in range(num_gen):
     offsprings = []
     for j in range(num_pop):
@@ -122,8 +129,8 @@ for i in range(num_gen):
         F_j[j] = [-0.1, 0.1, 0][action]
         CR_j[j] = [0.1, 0.1, 0][action]
 
-        next_state = [2, 0, 1][is_dominate(offspring, pop[j])]
-        reward = [1, -1, 0][next_state]
+        reward = [0, 1, -1][is_dominate(offspring, pop[j])]
+        next_state = [2, 0, 1][reward]
         qlearning.update(state, action, reward, next_state)
         state = next_state
         offsprings.append(offspring)
