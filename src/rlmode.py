@@ -1,5 +1,5 @@
-import numpy as np
 import random
+import numpy as np
 
 from pymoo.core.population import Population, pop_from_array_or_individual, merge
 from pymoo.core.individual import Individual
@@ -8,9 +8,9 @@ from pymoo.util.dominator import get_relation
 from pymoo.problems import get_problem
 from pymoo.indicators.igd import IGD
 from pymoo.visualization.scatter import Scatter
-from pymoode.survival import ConstrRankAndCrowding
+from pymoo.operators.survival.rank_and_crowding import RankAndCrowding
 
-problem = get_problem("ctp3", n_var=5)
+problem = get_problem("ctp7")
 pf = problem.pareto_front()
 ind = IGD(pf)
 
@@ -99,7 +99,7 @@ for i in range(num_gen):
 
     offsprings = Population.create(*offsprings)
     pop = merge(pop, offsprings)
-    pop = ConstrRankAndCrowding().do(problem, pop)[:num_pop]
+    pop = RankAndCrowding().do(problem, pop)[:num_pop]
     # The result found by the algorithm
     A = problem.evaluate(pop.get("X"), return_values_of=["F"])
     print(f"{i}", "IGD", ind(A))
